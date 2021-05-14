@@ -203,9 +203,21 @@ def verify_password(site_name, mysql_password):
 	return "console"
 
 @frappe.whitelist()
-def create_site(site_name, install_erpnext, mysql_password, admin_password, key):
+def create_site(site_name, install_erpnext, mysql_password, admin_password, key, domain):
 	verify_whitelisted_call()
-	commands = ["bench new-site --mariadb-root-password {mysql_password} --admin-password {admin_password} {site_name}".format(site_name=site_name,
+
+	try:
+		from socket import gethostbyname, gaierror
+		domain_ip = gethostbyname(domain)
+		from requests import get
+		server_ip = get('https://checkip.amazonaws.com').text.strip()
+
+		if server_ip != domain_ip:
+			frappe.throw('DNS record does not point to this server.')
+	except gaierror:
+		frappe.throw('DNS record does not point to this server.')
+
+	commands = ["bench new-site --mariadb-root-password {mysql_password} --admin-password {admin_password} --db-name {site_name} {site_name}".format(site_name=site_name,
 		admin_password=admin_password, mysql_password=mysql_password)]
 	if install_erpnext == "true":
 		with open('apps.txt', 'r') as f:
@@ -213,6 +225,13 @@ def create_site(site_name, install_erpnext, mysql_password, admin_password, key)
 		if 'erpnext' not in app_list:
 			commands.append("bench get-app erpnext")
 		commands.append("bench --site {site_name} install-app erpnext".format(site_name=site_name))
+
+		# command for adding domain to site
+		commands.append("bench setup add-domain --site {site_name} {domain}".format(site_name=site_name, domain=domain))
+
+		# command for lets-encrypt
+		commands.append("sudo bench setup lets-encrypt --custom-domain {domain} --non-interactive {site_name}".format(domain=domain, site_name=site_name))
+
 	frappe.enqueue('bench_manager.bench_manager.utils.run_command',
 		commands=commands,
 		doctype="Bench Settings",

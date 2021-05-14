@@ -55,13 +55,14 @@ frappe.ui.form.on('Bench Settings', {
 								depends_on: `eval:${String(r['message']['condition'][0] != 'T')}`},
 							{fieldname: 'mysql_password', fieldtype: 'Password',
 								label: 'MySQL Password', reqd: r['message']['condition'][1] != 'T',
-								default: r['message']['root_password'], depends_on: `eval:${String(r['message']['condition'][1] != 'T')}`}
+								default: r['message']['root_password'], depends_on: `eval:${String(r['message']['condition'][1] != 'T')}`},
+							{fieldname: 'domain', fieldtype: 'Data', label: 'Domain', reqd: true}
 						],
 					});
-					dialog.set_primary_action(__("Create"), () => {
+					dialog.set_primary_action(__("Create"), (values) => {
 						let key = frappe.datetime.get_datetime_as_string();
 						let install_erpnext;
-						if (dialog.fields_dict.install_erpnext.last_value != 1){
+						if (values.install_erpnext != 1){
 							install_erpnext = "false";
 						} else {
 							install_erpnext = "true";
@@ -69,8 +70,8 @@ frappe.ui.form.on('Bench Settings', {
 						frappe.call({
 							method: 'bench_manager.bench_manager.doctype.site.site.verify_password',
 							args: {
-								site_name: dialog.fields_dict.site_name.value,
-								mysql_password: dialog.fields_dict.mysql_password.value
+								site_name: values.site_name,
+								mysql_password: values.mysql_password
 							},
 							callback: function(r){
 								if (r.message == "console"){
@@ -78,11 +79,12 @@ frappe.ui.form.on('Bench Settings', {
 									frappe.call({
 										method: 'bench_manager.bench_manager.doctype.site.site.create_site',
 										args: {
-											site_name: dialog.fields_dict.site_name.value,
-											admin_password: dialog.fields_dict.admin_password.value,
-											mysql_password: dialog.fields_dict.mysql_password.value,
+											site_name: values.site_name,
+											admin_password: values.admin_password,
+											mysql_password: values.mysql_password,
 											install_erpnext: install_erpnext,
-											key: key
+											key: key,
+											domain: values.domain
 										}
 									});
 									dialog.hide();
